@@ -1,4 +1,6 @@
-from RLshortestmazepath import mazeEnv
+import random
+from environment import TennisEnv
+from collections import defaultdict
 
 
 
@@ -8,41 +10,136 @@ from RLshortestmazepath import mazeEnv
 # collect experience by choosing actions based on policy 
 # should return a dictionary saying which states were visited
 # should also return total return for each state in the rollout
-def mc_rollout(env, policy): 
-    current_state = env.initial_state
+def generate_episode(env, policy): 
+    trajectory = [] # [(s0, a0, r1), (s1, a1, r2)...]
+    state = env.reset()
+    done = False
+    while True:
+        action = policy(state)
+        next_state, reward, done = env.step(action)
+        trajectory.append((state, action, reward))
+        if done:
+            break
+        state = next_state
+    return trajectory
 
-
-def monte_carlo(env, policy, theta=1e-5):
+# every visit because states appear to be visited multiple times
+def every_visit_monte_carlo(env, policy):
     # V(s) = V(s) + 1/N(s)(Gt - V(s))
     
     # initialize V
-    V = {s: 0.0 for s in env.states}
-    N = {s: 0 for s in env.states}
-    for _ in range(1000): # 1000 episodes 
-        visited, total = mc_rollout(env, policy)
-        for state, visits in visited.items(): # ex. (5, 1)
-            N[state] += visits 
-            if visits != 0:
-                V[state] = V[state] + (1/N[state]*(total[state] - V[state]))  
+    V = {}
+    N = {}
+    for _ in range(10000): # 10000 episodes 
+        trajectory = generate_episode(env, policy)
+        
+        G = 0
+        for state, action, reward in reversed(trajectory):
+            if state not in V:
+                V[state] = 0
+                N[state] = 0
+            G = reward + env.gamma*G
+            N[state] += 1
+            V[state] = V[state] + (1/N[state])*(G - V[state])
+    for state in V:
+        print(state, V[state], N[state])
+
+
     return V        
             
-            
+         
+def first_visit_monte_carlo(env, policy):
+    V = {}
+    N = {}
 
+    for _ in range(10000):
+        trajectory = generate_episode(env, policy)
 
+        G = 0
+
+        for state, action, reward in reversed(trajectory):
+            G = reward + env.gamma * G
+            if state not in V:
+                V[state] = 0
+                N[state] = 0
+            N[state] += 1
+            V[state] += (1/N[state]) * (G - V[state])
+
+    
+    return V
 
 
 
 
 
 # implement td-learning and sarsa control
-def td_sarsa_0(env, policy, theta=1e-5, alpha=0.1):
-    pass
+def td_0(env, policy, alpha=0.01):
+    # V(s) = V(s) + alpha[r + gammaV(s') - V(s)]
+    V = {}
+    #N = {}
+    for _ in range(100000):
+        # online updates so 
+        state = env.reset()
+        while True:
+            next_state, reward, done = env.step(policy(state))
+            if state not in V:
+                V[state] = 0
+            if next_state not in V:
+                V[next_state] = 0
+            delta = reward + env.gamma * V[next_state] - V[state]
+            if done:
+                delta = reward - V[state] # V[next_state] is 0 if terminal
+            else:
+                delta = reward + env.gamma * V[next_state] - V[state]
+            V[state] = V[state] + alpha * delta
+            if done:
+                break
+            state = next_state
+    for state in V:
+        print(state, V[state])
+    return V
+            
+
+
 
 
 # implement backward view TD-lambda with eligibility traces 
-def td_lambda(env, policy, theta=1e-5, alpha=0.1):
-    pass
+def td_lambda(env, policy, llambda=0.6, alpha=0.005):
+    V = defaultdict(float) # Eligibility traces
+    for _ in range(100000):
+        E = defaultdict(float)
+        state = env.reset()
+        while True:
+            next_state, reward, done = env.step(policy(state))
+            E[state] += 1
+            if done:
+                delta = reward - V[state]
+            else:
+                delta = reward + env.gamma * V[next_state] - V[state]
+            for s in E:
+                V[s] += alpha * delta * E[s]
+                E[s] *= llambda * env.gamma
+            if done:
+                break
+            state = next_state
+    return V
 
 
 
-env = mazeEnv()
+
+
+env = TennisEnv()
+def baseline_policy(state):
+
+    phase, ball_position, player_balance, opponent_balance, stamina, pressure = state
+
+    if opponent_balance == "defensive":
+        return "crosscourt"
+
+    return "heavy_topspin"
+
+#print(generate_episode(env, baseline_policy))
+print(f"Every visit V: {every_visit_monte_carlo(env, baseline_policy)}")
+print(f"First visit V: {first_visit_monte_carlo(env, baseline_policy)}")
+print(f"TD(0): {td_0(env, baseline_policy)}")
+print(f"TD(0.6): {td_lambda(env, baseline_policy)}")
