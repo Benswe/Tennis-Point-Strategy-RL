@@ -69,6 +69,7 @@ def sarsa(env, mu, alpha=0.005, num_episodes=100000): # build Q using sarsa(0)
     for episode in range(1, num_episodes+1):
         epsilon = 1/(episode**0.20)
         state = env.reset()
+        # must be declared here because otherwise we would choose an action twice in one state
         action = mu(Q, state, env, epsilon) # use e-greedy
         while True:
             next_state, reward, done = env.step(action)
@@ -91,8 +92,35 @@ def sarsa(env, mu, alpha=0.005, num_episodes=100000): # build Q using sarsa(0)
 
 
 
-def Q_learning(env, mu, alpha=0.005):
-    pass
+def Q_learning(env, mu, alpha=0.005, num_episodes=100000):
+    Q = defaultdict(float)
+
+    for episode in range(1, num_episodes+1):
+        epsilon = 1/(episode**0.20)
+        state = env.reset()
+        
+        while True:
+            action = mu(Q, state, env, epsilon)  # action is chosen from mu
+            next_state, reward, done = env.step(action)
+            # the difference here, is that we're gonna get our next_action by taking the max from Q
+            # this means this is off-policy learning, the policy used to collect experience
+            # is different from the policy being learned/evaluated
+            if done: # consider value next_state to be 0 if terminal
+                delta = reward - Q[(state, action)] 
+                Q[(state,action)] += alpha * delta
+                break
+            # next action gives max value possible
+            best_next_action = greedy_policy(Q, next_state, env)
+            delta = (reward + env.gamma*Q.get((next_state, best_next_action), 0.0) 
+            - Q[(state, action)]
+            )
+            Q[(state, action)] += alpha*delta
+            
+            # transition to next step (off-policy)
+            state = next_state
+    return Q
+            
+
 
 def sarsa_lambda(env, mu, llambda, alpha=0.005):
     pass
@@ -102,10 +130,13 @@ env = TennisEnv()
 
 
 
-sarsa_q = sarsa(env, epsilon_greedy)
-print(sarsa_q)
+Q = Q_learning(env, epsilon_greedy, num_episodes=1000000)
+print(Q)
 
+import statistics
 
+print("mean:", statistics.mean(Q.values()))
+print("abs max:", max(abs(v) for v in Q.values()))
 
 # Todo: track win-rate and average return
 def evaluate_policy(Q, env, num_episodes):
