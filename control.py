@@ -1,5 +1,4 @@
 import random
-import math
 from collections import defaultdict
 from environment import TennisEnv
 
@@ -122,22 +121,56 @@ def Q_learning(env, mu, alpha=0.005, num_episodes=100000):
             
 
 
-def sarsa_lambda(env, mu, llambda, alpha=0.005):
-    pass
+def sarsa_lambda(env, mu, llambda=0.5, alpha=0.005, num_episodes=100000):
+    Q = defaultdict(float)
+
+    for episode in range(1, num_episodes+1):
+        e = defaultdict(float)
+        epsilon = 1/episode**0.20
+        state = env.reset()
+        action = mu(Q, state, env, epsilon)
+        while True:
+            next_state, reward, done = env.step(action)
+            if done:
+                delta = reward - Q[(state,action)]
+                e[(state,action)] += 1
+
+                for sa in list(e.keys()):
+                    Q[sa] += alpha*delta*e[sa]
+
+                break
+            next_action = mu(Q, next_state, env, epsilon)
+            delta = reward + env.gamma*Q.get((next_state,next_action), 0.0) - Q[(state,action)]
+
+            e[(state, action)] += 1
+            for sa in list(e.keys()):
+                Q[sa] += alpha * delta * e[sa]
+                e[sa] *= llambda * env.gamma
+            state = next_state
+            action = next_action
+    return Q
 
 
 env = TennisEnv()
 
-
-
-Q = Q_learning(env, epsilon_greedy, num_episodes=1000000)
-print(Q)
-
-import statistics
-
-print("mean:", statistics.mean(Q.values()))
-print("abs max:", max(abs(v) for v in Q.values()))
-
 # Todo: track win-rate and average return
-def evaluate_policy(Q, env, num_episodes):
-    pass
+def evaluate_policy(Q, env, num_episodes=1000):
+    wins = 0
+    total_return = 0
+    for episode in range(1, num_episodes+1): # multiple episodes to account for stochasticity
+        state = env.reset()
+        episode_return = 0
+        while True:
+            action = greedy_policy(Q, state, env)
+            next_state, reward, done = env.step(action)
+            episode_return += reward
+            if done:
+                if reward > 0:
+                    wins += 1
+                break
+            state = next_state
+        total_return += episode_return
+    win_rate = wins/num_episodes
+    avg_return = total_return/num_episodes
+    return win_rate, avg_return
+            
