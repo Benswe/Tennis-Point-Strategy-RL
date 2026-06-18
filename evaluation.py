@@ -41,9 +41,6 @@ def every_visit_monte_carlo(env, policy):
             G = reward + env.gamma*G
             N[state] += 1
             V[state] = V[state] + (1/N[state])*(G - V[state])
-    for state in V:
-        print(state, V[state], N[state])
-
 
     return V        
             
@@ -95,8 +92,6 @@ def td_0(env, policy, alpha=0.01):
             if done:
                 break
             state = next_state
-    for state in V:
-        print(state, V[state])
     return V
             
 
@@ -113,12 +108,12 @@ def td_lambda(env, policy, llambda=0.6, alpha=0.005):
             next_state, reward, done = env.step(policy(state))
             E[state] += 1
             if done:
-                delta = reward - V[state]
+                delta = reward - V[state] # treat V[next_state] as 0 if terminal
             else:
                 delta = reward + env.gamma * V[next_state] - V[state]
             for s in E:
                 V[s] += alpha * delta * E[s]
-                E[s] *= llambda * env.gamma
+                E[s] *= llambda * env.gamma # decay the Eligibiity trace
             if done:
                 break
             state = next_state
@@ -139,7 +134,14 @@ def baseline_policy(state):
     return "heavy_topspin"
 
 #print(generate_episode(env, baseline_policy))
-print(f"Every visit V: {every_visit_monte_carlo(env, baseline_policy)}")
-print(f"First visit V: {first_visit_monte_carlo(env, baseline_policy)}")
-print(f"TD(0): {td_0(env, baseline_policy)}")
-print(f"TD(0.6): {td_lambda(env, baseline_policy)}")
+def print_states_by_value(label, V):
+    print(label)
+    for state, value in sorted(V.items(), key=lambda item: item[1], reverse=True):
+        print(f"{value}: {state}")
+
+# 2. print start state value
+if __name__ == "__main__":
+    print_states_by_value("Every visit V:", every_visit_monte_carlo(env, baseline_policy))
+    print_states_by_value("First visit V:", first_visit_monte_carlo(env, baseline_policy))
+    print_states_by_value("TD(0):", td_0(env, baseline_policy))
+    print_states_by_value("TD(0.6):", td_lambda(env, baseline_policy))
