@@ -43,27 +43,7 @@ def every_visit_monte_carlo(env, policy):
             V[state] = V[state] + (1/N[state])*(G - V[state])
 
     return V        
-            
-         
-def first_visit_monte_carlo(env, policy):
-    V = {}
-    N = {}
-
-    for _ in range(10000):
-        trajectory = generate_episode(env, policy)
-
-        G = 0
-
-        for state, action, reward in reversed(trajectory):
-            G = reward + env.gamma * G
-            if state not in V:
-                V[state] = 0
-                N[state] = 0
-            N[state] += 1
-            V[state] += (1/N[state]) * (G - V[state])
-
-    
-    return V
+        
 
 
 
@@ -142,6 +122,5 @@ def print_states_by_value(label, V):
 # 2. print start state value
 if __name__ == "__main__":
     print_states_by_value("Every visit V:", every_visit_monte_carlo(env, baseline_policy))
-    print_states_by_value("First visit V:", first_visit_monte_carlo(env, baseline_policy))
     print_states_by_value("TD(0):", td_0(env, baseline_policy))
     print_states_by_value("TD(0.6):", td_lambda(env, baseline_policy))

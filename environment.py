@@ -436,9 +436,3 @@ class TennisEnv:
     def _clamp(self, value, low, high):
         # Keep probabilities and computed scores inside reasonable bounds.
         return max(low, min(value, high))
-
-
-# Convenience object for quick interactive tests/imports.
-env = TennisEnv()
-
-state = env.reset()

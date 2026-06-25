@@ -1,6 +1,7 @@
 import random
 from collections import defaultdict
 from environment import TennisEnv
+import matplotlib.pyplot as plt
 
 
 def greedy_policy(Q, state, env):
@@ -137,7 +138,6 @@ def sarsa_lambda(env, mu, llambda=0.5, alpha=0.005, num_episodes=100000):
 
                 for sa in list(e.keys()):
                     Q[sa] += alpha*delta*e[sa]
-
                 break
             next_action = mu(Q, next_state, env, epsilon)
             delta = reward + env.gamma*Q.get((next_state,next_action), 0.0) - Q[(state,action)]
@@ -150,10 +150,7 @@ def sarsa_lambda(env, mu, llambda=0.5, alpha=0.005, num_episodes=100000):
             action = next_action
     return Q
 
-
-env = TennisEnv()
-
-# Todo: track win-rate and average return
+# track win-rate and average return
 def evaluate_policy(Q, env, num_episodes=1000):
     wins = 0
     total_return = 0
@@ -173,4 +170,3 @@ def evaluate_policy(Q, env, num_episodes=1000):
     win_rate = wins/num_episodes
     avg_return = total_return/num_episodes
     return win_rate, avg_return
-            
